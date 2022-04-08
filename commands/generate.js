@@ -1,4 +1,9 @@
 const axios = require("axios");
+const { MessageAttachment } = require("discord.js");
+const sharp = require("sharp");
+const download = require("download");
+const fs = require("fs");
+const path = require("path");
 require("dotenv").config();
 
 module.exports = {
@@ -27,7 +32,29 @@ module.exports = {
         text0: payload,
       });
 
-      message.channel.send(res.data.url);
+      const fileName = res.data.page_url.split("/").at(-1);
+      await download(res.data.url, "./temp");
+      await sharp(`./temp/${fileName}.jpg`)
+        .extract({
+          top: 4,
+          left: 4,
+          width: 485,
+          height: 415,
+        })
+        .toFile(`./temp/${fileName}-cropped.jpg`);
+
+      const image = new MessageAttachment(`./temp/${fileName}-cropped.jpg`);
+      await message.channel.send(image);
+
+      fs.readdir("./temp", (err, files) => {
+        if (err) throw err;
+        for (const file of files) {
+          fs.unlink(path.join("./temp", file), (err) => {
+            if (err) throw err;
+          });
+        }
+        console.log("File Sent And Deleted");
+      });
     } catch (err) {
       message.channel.send("Fuck You");
       console.error(err);
